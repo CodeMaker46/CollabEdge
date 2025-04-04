@@ -1,7 +1,8 @@
 import React from 'react';
 import { Code2, Phone, Pencil, Users, ArrowRight, Github } from 'lucide-react';
 import { BackgroundBeamsWithCollision } from '../ui/background-beams-with-collision';
-
+import { CardSpotlight } from '../ui/card-spotlight';
+import { GlowingEffect } from '../ui/glowing-effect';
 const LandingPage = () => {
   return (
     <BackgroundBeamsWithCollision>
@@ -46,6 +47,7 @@ const LandingPage = () => {
           </div>
         </div>
       </div>
+      
 
       {/* Features Grid */}
       <div className="container mx-auto px-6 py-24 border-t border-white/10">
