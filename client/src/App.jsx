@@ -6,6 +6,7 @@ import About from './components/pages/About.jsx'
 import Features from './components/pages/Features.jsx'
 import Pricing from './components/pages/Pricing.jsx'
 import Contact from './components/pages/Contact.jsx'
+import Dashboard from './components/pages/Dashboard.jsx'
 
 const App = () => {
   return (
@@ -18,7 +19,7 @@ const App = () => {
       <Route path="/login" element={<Login />} />  
 
       {/* Protected routes */}
-      
+      <Route path="/dashboard" element={<Dashboard />} />
     </Routes>
   )
 }
