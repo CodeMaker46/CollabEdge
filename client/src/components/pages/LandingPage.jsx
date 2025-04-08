@@ -25,7 +25,7 @@ const LandingPage = () => {
     setIsLoginModalOpen(true);
   };
   return (
-    //<BackgroundBeamsWithCollision>
+    <BackgroundBeamsWithCollision>
       <div className="min-h-screen bg-black text-white">
       {/* Hero Section */}
       <div className="relative overflow-hidden">
@@ -144,7 +144,7 @@ const LandingPage = () => {
       </footer>
       <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
     </div>
-    //</BackgroundBeamsWithCollision>
+    </BackgroundBeamsWithCollision>
   );
 }
 
