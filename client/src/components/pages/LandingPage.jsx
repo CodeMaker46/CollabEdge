@@ -1,11 +1,31 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Code2, Phone, Pencil, Users, ArrowRight, Github } from 'lucide-react';
+import { auth } from '../../lib/firebase';
 import { BackgroundBeamsWithCollision } from '../ui/background-beams-with-collision';
 import { CardSpotlight } from '../ui/card-spotlight';
 import { GlowingEffect } from '../ui/glowing-effect';
+import LoginModal from '../ui/login-modal';
 const LandingPage = () => {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        navigate('/dashboard');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [navigate]);
+
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+
+  const handleGetStarted = () => {
+    setIsLoginModalOpen(true);
+  };
   return (
-    <BackgroundBeamsWithCollision>
+    //<BackgroundBeamsWithCollision>
       <div className="min-h-screen bg-black text-white">
       {/* Hero Section */}
       <div className="relative overflow-hidden">
@@ -21,7 +41,11 @@ const LandingPage = () => {
               <a href="#about" className="hover:text-gray-300 transition-colors">About</a>
               <a href="#pricing" className="hover:text-gray-300 transition-colors">Pricing</a>
             </div>
-            <button className="bg-white text-black px-6 py-2 rounded-full font-medium hover:bg-gray-200 transition-colors">
+            <button
+              style={{ zIndex: 50, position: 'relative' }}
+              onClick={handleGetStarted}
+              className="bg-white text-black px-6 py-2 rounded-full font-medium hover:bg-gray-200 transition-colors"
+            >
               Get Started
             </button>
           </div>
@@ -37,7 +61,10 @@ const LandingPage = () => {
               Experience seamless collaboration with integrated code editing, voice calls, and whiteboarding. All in one powerful platform.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <button className="w-full sm:w-auto bg-white text-black px-8 py-4 rounded-full font-medium hover:bg-gray-200 transition-colors flex items-center justify-center gap-2">
+              <button
+                onClick={handleGetStarted}
+                className="w-full sm:w-auto bg-white text-black px-8 py-4 rounded-full font-medium hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+              >
                 Start Coding Now <ArrowRight className="w-5 h-5" />
               </button>
               <button className="w-full sm:w-auto border border-white/20 px-8 py-4 rounded-full font-medium hover:bg-white/10 transition-colors flex items-center justify-center gap-2">
@@ -115,8 +142,9 @@ const LandingPage = () => {
           </div>
         </div>
       </footer>
+      <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
     </div>
-    </BackgroundBeamsWithCollision>
+    //</BackgroundBeamsWithCollision>
   );
 }
 
