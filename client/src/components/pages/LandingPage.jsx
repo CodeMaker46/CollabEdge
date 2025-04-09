@@ -1,28 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Code2, Phone, Pencil, Users, ArrowRight, Github } from 'lucide-react';
-import { auth } from '../../lib/firebase';
+
 import { BackgroundBeamsWithCollision } from '../ui/background-beams-with-collision';
-import { CardSpotlight } from '../ui/card-spotlight';
-import { GlowingEffect } from '../ui/glowing-effect';
-import LoginModal from '../ui/login-modal';
+
 const LandingPage = () => {
+
   const navigate = useNavigate();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user) {
-        navigate('/dashboard');
-      }
-    });
+    const storedUser = localStorage.getItem('user');
+    setIsLoggedIn(!!storedUser);  // true if user exists
+  }, []);
 
-    return () => unsubscribe();
-  }, [navigate]);
-
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-
-  const handleGetStarted = () => {
-    setIsLoginModalOpen(true);
+  const handleClick = () => {
+    if (isLoggedIn) {
+      navigate('/dashboard');
+    } else {
+      navigate('/login');
+    }
   };
   return (
     <BackgroundBeamsWithCollision>
@@ -43,10 +40,10 @@ const LandingPage = () => {
             </div>
             <button
               style={{ zIndex: 50, position: 'relative' }}
-              onClick={handleGetStarted}
+              onClick={handleClick}
               className="bg-white text-black px-6 py-2 rounded-full font-medium hover:bg-gray-200 transition-colors"
             >
-              Get Started
+              {isLoggedIn ? "Go to Dashboard" : "Get Started"}
             </button>
           </div>
         </nav>
@@ -62,7 +59,7 @@ const LandingPage = () => {
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <button
-                onClick={handleGetStarted}
+                onClick={handleClick}
                 className="w-full sm:w-auto bg-white text-black px-8 py-4 rounded-full font-medium hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
               >
                 Start Coding Now <ArrowRight className="w-5 h-5" />
@@ -142,7 +139,7 @@ const LandingPage = () => {
           </div>
         </div>
       </footer>
-      <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
+      
     </div>
     </BackgroundBeamsWithCollision>
   );

@@ -1,18 +1,23 @@
 import React from 'react';
 import { Code2, Plus, LogIn } from 'lucide-react';
 import { CardSpotlight } from '../ui/card-spotlight';
-import { getAuth, signOut } from 'firebase/auth';
+import { auth } from '@/config/firebase';
+import { signOut } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 
 const Dashboard = () => {
   const navigate = useNavigate();
+
   const handleSignOut = async () => {
     try {
-      const auth = getAuth();
       await signOut(auth);
-      navigate('/');
+      localStorage.removeItem('user'); // ✅ Clear user
+      toast.success('Signed out successfully!');
+      navigate('/'); // or to /login
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.log(error)
+      toast.error('Error signing out');
     }
   };
 
