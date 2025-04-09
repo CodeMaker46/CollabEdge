@@ -15,6 +15,8 @@ const LandingPage = () => {
   }, []);
 
   const handleClick = () => {
+    console.log("clicked");
+
     if (isLoggedIn) {
       navigate('/dashboard');
     } else {
@@ -60,6 +62,7 @@ const LandingPage = () => {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <button
                 onClick={handleClick}
+                style={{ zIndex: 50, position: 'relative' }}
                 className="w-full sm:w-auto bg-white text-black px-8 py-4 rounded-full font-medium hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
               >
                 Start Coding Now <ArrowRight className="w-5 h-5" />
