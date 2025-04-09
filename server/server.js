@@ -3,7 +3,7 @@ const app = require('./app');
 const dotenv = require('dotenv');
 const { Server } = require('socket.io');
 const cors = require('cors');
-const { USER_CONNECTION_STATUS , User} = require('./types/user');
+const { USER_CONNECTION_STATUS } = require('./types/user');
 
 
 dotenv.config();

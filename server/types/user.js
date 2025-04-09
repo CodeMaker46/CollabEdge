@@ -15,4 +15,7 @@ const USER_CONNECTION_STATUS = {
  */
 
 
-export {USER_CONNECTION_STATUS,User}
+module.exports = {
+  USER_CONNECTION_STATUS
+};
+
