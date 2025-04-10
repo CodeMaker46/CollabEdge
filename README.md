@@ -29,7 +29,7 @@ docker-compose up --build
 This command will build the Docker images and start the containers.
 
 ### 4. Access the Application
-- Frontend: http://localhost:80
+- Frontend: http://localhost:5173
 - Backend API: http://localhost:3000
 
 ## Docker Compose Services
@@ -37,7 +37,7 @@ This command will build the Docker images and start the containers.
 ### Client (Frontend)
 - Built with React and Vite
 - Served via Nginx
-- Accessible on port 80
+- Accessible on port 5173
 
 ### Server (Backend)
 - Node.js Express server
