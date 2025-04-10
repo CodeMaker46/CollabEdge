@@ -2,9 +2,20 @@ import React, { useEffect, useState } from 'react';
 import { Code2, Plus, LogIn, History, LayoutGrid, DoorOpen } from 'lucide-react';
 import { auth } from '@/config/firebase';
 import { signOut } from 'firebase/auth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { getRooms, getUserHistory } from '../../utils/api';
+import { io } from 'socket.io-client';
+
+const socket = io('http://localhost:3000');
+
+const SOCKET_EVENTS = {
+  CREATE_ROOM: 'create_room',
+  JOIN_ROOM: 'join_room',
+  ROOM_CREATED: 'room_created',
+  ROOM_JOINED: 'room_joined',
+  ROOM_ERROR: 'room_error',
+  USER_JOINED: 'user_joined'
+};
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -13,18 +24,44 @@ const Dashboard = () => {
   const [isCreating, setIsCreating] = useState(true);
   const [createdRooms, setCreatedRooms] = useState([]);
   const [joinedRooms, setJoinedRooms] = useState([]);
-
+  const [roomName, setRoomName] = useState('');
+  const [passcode, setPasscode] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [selectedPasscode, setSelectedPasscode] = useState('');
+  const [activeUsers, setActiveUsers] = useState([]);
 
-  const dummyCreatedRooms = [
-    { id: 'r1', name: 'React Collab', createdAt: '2025-04-01', passcode: 'RC123' },
-    { id: 'r2', name: 'AI Project', createdAt: '2025-04-05', passcode: 'AI456' },
-  ];
-  const dummyHistory = [
-    { id: 'h1', name: 'Node Room', joinedAt: '2025-03-25' },
-    { id: 'h2', name: 'Design Talk', joinedAt: '2025-03-30' },
-  ];
+  useEffect(() => {
+    // Socket event listeners
+    socket.on(SOCKET_EVENTS.ROOM_CREATED, ({ room }) => {
+      setCreatedRooms(prev => [...prev, room]);
+      toast.success('Room created successfully!');
+      navigate(`/dashboard/room/${room.roomCode}`);
+    });
+
+    socket.on(SOCKET_EVENTS.ROOM_JOINED, ({ room }) => {
+      setJoinedRooms(prev => [...prev, room]);
+      toast.success('Joined room successfully!');
+      console.log(room.roomCode);
+      console.log(room);
+      navigate(`/dashboard/room/${room.roomCode}`);
+    });
+
+    socket.on(SOCKET_EVENTS.USER_JOINED, ({ email, activeUsers }) => {
+      setActiveUsers(activeUsers);
+      toast.success(`${email} joined the room`);
+    });
+
+    socket.on(SOCKET_EVENTS.ROOM_ERROR, ({ message }) => {
+      toast.error(message);
+    });
+
+    return () => {
+      socket.off(SOCKET_EVENTS.ROOM_CREATED);
+      socket.off(SOCKET_EVENTS.ROOM_JOINED);
+      socket.off(SOCKET_EVENTS.USER_JOINED);
+      socket.off(SOCKET_EVENTS.ROOM_ERROR);
+    };
+  }, []);
 
   const email = JSON.parse(localStorage.getItem('user'))?.email;
 
@@ -54,11 +91,17 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (email) {
-      // fetchUserData();
-      setCreatedRooms(dummyCreatedRooms);
-      setJoinedRooms(dummyHistory);
+      // Fetch rooms data
+      socket.emit('get_rooms', { email });
+      socket.on('rooms_data', ({ createdRooms: created, joinedRooms: joined }) => {
+        setCreatedRooms(created || []);
+        setJoinedRooms(joined || []);
+      });
     }
-  }, []);
+    return () => {
+      socket.off('rooms_data');
+    };
+  }, [email]);
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -143,9 +186,39 @@ const Dashboard = () => {
                   <p className="text-gray-400 mb-6">
                     Start a new collaboration room and invite your team members
                   </p>
-                  <button className="bg-white text-black px-6 py-3 rounded-full font-medium hover:bg-gray-200 transition-colors w-full max-w-xs">
-                    Create New Room
-                  </button>
+                  <div className="w-full max-w-xs space-y-4">
+                    <input
+                      type="text"
+                      value={roomName}
+                      onChange={(e) => setRoomName(e.target.value)}
+                      placeholder="Enter room name"
+                      className="w-full px-4 py-3 rounded-full bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:border-white/40"
+                    />
+                    <input
+                      type="text"
+                      value={passcode}
+                      onChange={(e) => setPasscode(e.target.value)}
+                      placeholder="Enter passcode"
+                      className="w-full px-4 py-3 rounded-full bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:border-white/40"
+                    />
+                    <button 
+                      onClick={() => {
+                        if (!roomName || !passcode) {
+                          toast.error('Please fill in all fields');
+                          return;
+                        }
+                        socket.emit(SOCKET_EVENTS.CREATE_ROOM, {
+                          name: roomName,
+                          passCode: passcode,
+                          email: email
+                        });
+                        setRoomName('');
+                        setPasscode('');
+                      }}
+                      className="bg-white text-black px-6 py-3 rounded-full font-medium hover:bg-gray-200 transition-colors w-full">
+                      Create New Room
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-col items-center text-center">
@@ -159,15 +232,33 @@ const Dashboard = () => {
                   <div className="w-full max-w-xs space-y-4">
                     <input
                       type="text"
-                      placeholder="Enter room code"
+                      value={roomName}
+                      onChange={(e) => setRoomName(e.target.value)}
+                      placeholder="Enter room code (e.g. ABC123)"
                       className="w-full px-4 py-3 rounded-full bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:border-white/40"
                     />
                     <input
                       type="text"
-                      placeholder="Enter Pass code"
+                      value={passcode}
+                      onChange={(e) => setPasscode(e.target.value)}
+                      placeholder="Enter passcode"
                       className="w-full px-4 py-3 rounded-full bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:border-white/40"
                     />
-                    <button className="bg-white text-black px-6 py-3 rounded-full font-medium hover:bg-gray-200 transition-colors w-full">
+                    <button 
+                      onClick={() => {
+                        if (!roomName || !passcode) {
+                          toast.error('Please fill in all fields');
+                          return;
+                        }
+                        socket.emit(SOCKET_EVENTS.JOIN_ROOM, {
+                          roomCode: roomName,
+                          passCode: passcode,
+                          email: email
+                        });
+                        setRoomName('');
+                        setPasscode('');
+                      }}
+                      className="bg-white text-black px-6 py-3 rounded-full font-medium hover:bg-gray-200 transition-colors w-full">
                       Join Room
                     </button>
                   </div>
@@ -187,9 +278,15 @@ const Dashboard = () => {
               >
                 <h4 className="text-lg font-semibold mb-2">{room.name}</h4>
                 <p className="text-sm text-gray-400 mb-4">
+                  Room Code: <span className="text-white">{room.roomCode}</span>
+                  <br />
                   {viewHistory
                     ? `Joined on ${room.joinedAt}`
                     : `Created on ${room.createdAt}`}
+                  <br />
+                  <span className="text-green-400">
+                    {room.activeUsers?.length || 0} active users
+                  </span>
                 </p>
 
                 {!viewHistory && (

@@ -7,6 +7,7 @@ import Features from './components/pages/Features.jsx'
 import Pricing from './components/pages/Pricing.jsx'
 import Contact from './components/pages/Contact.jsx'
 import Dashboard from './components/pages/Dashboard.jsx'
+import Room from './components/pages/Room.jsx'
 import { Toaster } from 'react-hot-toast'
 const App = () => {
   return (
@@ -21,6 +22,7 @@ const App = () => {
 
       {/* Protected routes */}
       <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/dashboard/room/:roomId" element={<Room />} />
       
     </Routes>
 
