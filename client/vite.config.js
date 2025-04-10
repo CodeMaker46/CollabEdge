@@ -11,4 +11,36 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    host: true,
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: process.env.VITE_API_URL || 'http://server:3000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '')
+      },
+      '/socket.io': {
+        target: process.env.VITE_API_URL || 'http://server:3000',
+        changeOrigin: true,
+        ws: true
+      }
+    }
+  },
+  preview: {
+    host: true,
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: process.env.VITE_API_URL || 'http://server:3000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '')
+      },
+      '/socket.io': {
+        target: process.env.VITE_API_URL || 'http://server:3000',
+        changeOrigin: true,
+        ws: true
+      }
+    }
+  }
 })

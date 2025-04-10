@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:6
+    container_name: collabedge-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - collabedge-network
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: collabedge-server
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./server/.env
+    depends_on:
+      - mongo
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+    networks:
+      - collabedge-network
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: collabedge-client
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    env_file:
+      - ./client/.env
+    depends_on:
+      - server
+    networks:
+      - collabedge-network
+
+networks:
+  collabedge-network:
+    driver: bridge
+
+volumes:
+  mongo-data:
