@@ -37,6 +37,7 @@ router.post('/create', async (req, res) => {
 // Join a room
 router.post('/join', async (req, res) => {
   try {
+    console.log(req.body);
     const { roomCode, passCode, email } = req.body;
 
     // Validate required fields
@@ -86,6 +87,31 @@ router.get('/', async (req, res) => {
   } catch (error) {
     console.error('Error fetching rooms:', error);
     res.status(500).json({ message: 'Error fetching rooms' });
+  }
+});
+
+// Delete a room
+router.delete('/:roomCode', async (req, res) => {
+  try {
+    const { roomCode } = req.params;
+    const { email } = req.body;
+
+    const room = await Room.findOne({ roomCode });
+    if (!room) {
+      return res.status(404).json({ message: 'Room not found' });
+    }
+
+    // Check if user is the creator
+    if (room.creator !== email) {
+      return res.status(403).json({ message: 'Only room creator can delete the room' });
+    }
+
+    // Delete the room
+    await Room.deleteOne({ roomCode });
+    res.json({ message: 'Room deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting room:', error);
+    res.status(500).json({ message: 'Error deleting room' });
   }
 });
 

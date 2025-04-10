@@ -2,73 +2,159 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { toast } from 'react-hot-toast';
-import { FaUser } from 'react-icons/fa';
+import { FaUser, FaSignOutAlt } from 'react-icons/fa';
 import CollaborativeEditor from '../CollaborativeEditor';
 
-const socket = io('http://localhost:3000', {
-  reconnection: true,
-  reconnectionAttempts: 5,
-  reconnectionDelay: 1000,
-});
+// Initialize socket connection
+let socket;
+
+const initSocket = () => {
+  if (socket) {
+    socket.disconnect();
+  }
+  
+  socket = io('http://localhost:3000', {
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000,
+    autoConnect: false
+  });
+  
+  return socket;
+};
 
 const Room = () => {
   const { roomId } = useParams();
-  console.log('Room ID:', roomId); // Debug log to verify route param
   const navigate = useNavigate();
   const [activeUsers, setActiveUsers] = useState([]);
   const [isConnected, setIsConnected] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
   const [roomDetails, setRoomDetails] = useState(null);
-  const email = JSON.parse(localStorage.getItem('user'))?.email;
+  
+  // Get user email from localStorage
+  const user = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null;
+  const email = user?.email;
+
+  // Get stored pass code from sessionStorage (persists during page reloads)
+  const getStoredPassCode = () => {
+    return sessionStorage.getItem(`room_passcode_${roomId}`);
+  };
+
+  // Store pass code in sessionStorage
+  const storePassCode = (passcode) => {
+    sessionStorage.setItem(`room_passcode_${roomId}`, passcode);
+  };
+
+  // Handle user exit
+  const handleExit = () => {
+    // Emit leave room event
+    socket.emit('leave_room', { roomCode: roomId, email });
+    
+    // Clear session storage
+    sessionStorage.removeItem(`room_passcode_${roomId}`);
+    
+    // Disconnect socket
+    socket.disconnect();
+    
+    // Navigate to dashboard
+    navigate('/dashboard');
+  };
 
   useEffect(() => {
     let mounted = true;
+    let currentSocket = null;
 
-    const initializeRoom = () => {
-      if (!email) {
-        toast.error('Please login to access the room');
-        navigate('/login');
-        return;
-      }
+    // Check if user is logged in
+    if (!email) {
+      toast.error('Please login to access the room');
+      navigate('/login');
+      return;
+    }
 
-      console.log('Initializing room connection...');
-      console.log('Current user:', email);
+    // Check if roomId exists
+    if (!roomId) {
+      toast.error('Invalid room ID');
+      navigate('/dashboard');
+      return;
+    }
 
-      // Join room with roomId
-      if (roomId && mounted) {
-        socket.emit('join_room', { 
-          roomCode: roomId,
-          passCode: roomId,
-          email 
-        });
-        console.log('Attempting to join room:', roomId);
-      } else if (!roomId) {
-        toast.error('Invalid room ID');
-        navigate('/dashboard');
-      }
-    };
+    // Initialize socket connection
+    currentSocket = initSocket();
+    currentSocket.connect();
+
+    console.log('Initializing room connection...');
+    console.log('Current user:', email);
 
     // Socket connection handlers
     socket.on('connect', () => {
       console.log('Socket connected');
       setIsConnected(true);
       setReconnecting(false);
-      initializeRoom();
+      
+      // Get stored pass code if available
+      const storedPassCode = getStoredPassCode();
+      
+      // If we have a stored pass code, use it to rejoin the room
+      if (storedPassCode) {
+        console.log('Rejoining room with stored pass code');
+        socket.emit('join_room', { 
+          roomCode: roomId,
+          passCode: storedPassCode,
+          email 
+        });
+      } else {
+        // First time joining - use roomId as pass code
+        console.log('Joining room for the first time');
+        socket.emit('join_room', { 
+          roomCode: roomId,
+          passCode: roomId,
+          email 
+        });
+      }
     });
 
     socket.on('room_joined', ({ room, message }) => {
       console.log('Successfully joined room:', room);
-      console.log('Room details:', room);
       setRoomDetails(room);
       toast.success(message);
+      
+      // Always store the successful pass code from the room
+      storePassCode(room.passCode || roomId);
+    });
+
+    // Listen for pass code errors
+    socket.on('passcode_error', ({ message }) => {
+      toast.error(message || 'Invalid pass code. Please check your pass code and try again.');
+      
+      // Clear stored pass code since it's invalid
+      sessionStorage.removeItem(`room_passcode_${roomId}`);
+      
+      // Redirect to dashboard
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 2000);
+    });
+
+    // Handle general room errors
+    socket.on('room_error', ({ message }) => {
+      toast.error(message);
+      
+      // If error is about pass code, clear stored pass code
+      if (message.includes('pass code') || message.includes('passcode')) {
+        sessionStorage.removeItem(`room_passcode_${roomId}`);
+      }
+      
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 2000);
     });
 
     // Listen for user joined events
-    socket.on('user_joined', ({ email: joinedEmail, activeUsers, room }) => {
+    socket.on('user_joined', ({ email: joinedEmail, activeUsers: users, room }) => {
       console.log('User joined:', joinedEmail);
-      console.log('Active users:', activeUsers);
+      console.log('Active users:', users);
       if (mounted) {
-        setActiveUsers(activeUsers || []);
+        setActiveUsers(users || []);
         setRoomDetails(room);
         if (joinedEmail !== email) {
           toast.success(`${joinedEmail} joined the room`);
@@ -77,29 +163,26 @@ const Room = () => {
     });
 
     // Listen for user disconnected events
-    socket.on('user_disconnected', ({ user }) => {
-      setActiveUsers(prev => prev.filter(email => email !== user.email));
-      toast.error(`${user.email} left the room`);
+    socket.on('user_disconnected', ({ user: disconnectedUser, activeUsers: updatedUsers }) => {
+      setActiveUsers(updatedUsers || []);
+      toast.error(`${disconnectedUser.email} left the room`);
     });
 
-    // Listen for room errors
-    socket.on('room_error', ({ message }) => {
-      toast.error(message);
-      navigate('/dashboard');
-    });
-
-    return () => {
-      mounted = false;
-      socket.off('connect');
-      socket.off('disconnect');
-      socket.off('reconnecting');
-      socket.off('reconnect_failed');
-      socket.off('user_joined');
-      socket.off('room_joined');
-      socket.off('user_disconnected');
-      socket.off('room_error');
-      socket.disconnect();
-    };
+  return () => {
+    mounted = false;
+    if (currentSocket) {
+      currentSocket.off('connect');
+      currentSocket.off('disconnect');
+      currentSocket.off('reconnecting');
+      currentSocket.off('reconnect_failed');
+      currentSocket.off('user_joined');
+      currentSocket.off('room_joined');
+      currentSocket.off('user_disconnected');
+      currentSocket.off('room_error');
+      currentSocket.off('passcode_error');
+      currentSocket.disconnect();
+    }
+  };
   }, [email, navigate, roomId]);
 
   return (
@@ -120,6 +203,13 @@ const Room = () => {
                 {isConnected ? 'Connected' : reconnecting ? 'Reconnecting...' : 'Disconnected'}
               </span>
             </div>
+            <button
+              onClick={handleExit}
+              className="flex items-center gap-2 px-4 py-2 bg-red-500/20 text-red-400 rounded-full border border-red-500/20 hover:bg-red-500/30 transition-colors"
+            >
+              <FaSignOutAlt />
+              Exit Room
+            </button>
           </div>
         </header>
 

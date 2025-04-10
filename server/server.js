@@ -55,9 +55,8 @@ const createRoom = async (name, passCode, creatorEmail) => {
     let roomCode = name;
     
     const room = new Room({
-      name: roomCode,
       roomCode: roomCode,
-      passCode,
+      passCode: passCode,
       creator: creatorEmail
     });
     await room.save();
@@ -78,6 +77,7 @@ const joinRoom = async (roomCode, passCode, userEmail) => {
     }
 
     // Validate passCode
+    console.log(room.passCode, passCode);
     if (room.passCode !== passCode) {
       throw new Error('Invalid pass code. Please check your pass code and try again.');
     }
@@ -125,6 +125,45 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Handle room deletion
+  socket.on('delete_room', async ({ roomCode, email }) => {
+    try {
+      const room = await Room.findOne({ roomCode });
+      if (!room) {
+        socket.emit('room_error', { message: 'Room not found' });
+        return;
+      }
+
+      // Check if user is the creator
+      if (room.creator !== email) {
+        socket.emit('room_error', { message: 'Only room creator can delete the room' });
+        return;
+      }
+
+      // Delete the room
+      await Room.deleteOne({ roomCode });
+
+      // Notify all users in the room about deletion
+      io.to(roomCode).emit('room_deleted', { roomCode });
+
+      // Disconnect all users from the room
+      const roomSockets = io.sockets.adapter.rooms.get(roomCode);
+      if (roomSockets) {
+        roomSockets.forEach(socketId => {
+          const socket = io.sockets.sockets.get(socketId);
+          if (socket) {
+            socket.leave(roomCode);
+          }
+        });
+      }
+
+      socket.emit('room_deleted_success', { message: 'Room deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting room:', error);
+      socket.emit('room_error', { message: 'Error deleting room' });
+    }
+  });
+
   // Handle room creation
   socket.on('create_room', async ({ name, passCode, email }) => {
     try {
@@ -159,6 +198,31 @@ io.on('connection', (socket) => {
       });
     } catch (error) {
       socket.emit('room_error', { message: error.message });
+    }
+  });
+
+  // Handle room leaving
+  socket.on('leave_room', async ({ roomCode, email }) => {
+    try {
+      const room = await Room.findOne({ roomCode });
+      if (room) {
+        // Remove user from active users
+        room.removeActiveUser(email);
+        await room.save();
+
+        // Leave the socket room
+        socket.leave(roomCode);
+        userSocketMap.delete(socket.id);
+
+        // Notify other users with updated active users list
+        io.to(roomCode).emit('user_disconnected', {
+          user: { email },
+          activeUsers: room.activeUsers
+        });
+      }
+    } catch (error) {
+      console.error('Error leaving room:', error);
+      socket.emit('room_error', { message: 'Error leaving room' });
     }
   });
 
