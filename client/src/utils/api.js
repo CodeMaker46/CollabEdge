@@ -3,8 +3,8 @@ import axios from 'axios';
 const BASE_URL =  import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api/v1';
 
 
-export const getRooms = async ()=>{
-    const response = await axios.get(`${BASE_URL}/rooms/${gmail}`);
+export const getRooms = async (email) => {
+    const response = await axios.get(`${BASE_URL}/rooms/created/${email}`);
     return response.data;
 }
 
